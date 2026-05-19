@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  password      String
+  avatar        String?
+  isOnline      Boolean   @default(false)
+  lastSeen      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+  reactions        Reaction[]
+
+  @@map("users")
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  content     String?
+  type        MessageType   @default(TEXT)
+  status      MessageStatus @default(SENT)
+  isEdited    Boolean       @default(false)
+  isDeleted   Boolean       @default(false)
+  isPinned    Boolean       @default(false)
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  fileType    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  senderId    String
+  sender      User          @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId  String
+  receiver    User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  replyToId   String?
+  replyTo     Message?      @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]     @relation("MessageReplies")
+
+  reactions   Reaction[]
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  emoji     String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@map("reactions")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  SEEN
+}
